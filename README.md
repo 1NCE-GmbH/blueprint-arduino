@@ -35,6 +35,8 @@ The Energy Saver aims to minimize the payload size sent from the device to a sim
 
  Check  [1NCE Developer Hub (Energy Saver)](https://help.1nce.com/dev-hub/docs/1nce-os-energy-saver) for further explantion of the translation template creation.
 
+### Device Controller
+The Device Controller supports sending messages to the device via the 1NCE OS managed services. For that we offer three protocols which must be activated in the Device Integrator. [Device Controller](https://help.1nce.com/dev-hub/docs/1nce-os-device-controller)
 
 ## Available Demos
 - [UDP](examples/nce_udp_demo/README.md)

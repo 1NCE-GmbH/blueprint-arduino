@@ -804,7 +804,8 @@ typedef int (*lwm2m_bootstrap_callback_t)(lwm2m_context_t *contextP, void *sessi
 #endif
 
 typedef time_t (* time_function_t)(void) ;
-
+typedef int (* led_on_off)(bool);
+typedef int (* led_rgb)(uint8_t, uint8_t, uint8_t);
 struct _lwm2m_context_
 {
 #ifdef LWM2M_CLIENT_MODE
@@ -832,6 +833,8 @@ struct _lwm2m_context_
     lwm2m_transaction_t *   transactionList;
     network_interface_t *   networkInterface;
     time_function_t    lwm2m_gettime;
+    led_on_off            lwm2m_led;
+    led_rgb           lwm2m_set_led_color;
     void *                  userData;
 };
 

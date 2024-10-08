@@ -58,15 +58,13 @@
  *
  *                  Multiple
  * Object |  ID   | Instances | Mandatory |
- *  Test  | 31024 |    Yes    |    No     |
+ *  Test  | 3311  |    Yes    |    No     |
  *
  *  Resources:
  *              Supported    Multiple
- *  Name | ID | Operations | Instances | Mandatory |  Type   | Range | Units | Description |
- *  test |  1 |    R/W     |    No     |    Yes    | Integer | 0-255 |       |             |
- *  exec |  2 |     E      |    No     |    Yes    |         |       |       |             |
- *  dec  |  3 |    R/W     |    No     |    Yes    |  Float  |       |       |             |
- *  str  |  5 |    R/W     |    No     |    No     | String  |       |       |             |
+ *  Name  | ID | Operations | Instances | Mandatory |  Type   | Range | Units | Description |
+ *  On/Off|5850|    R/W     |    No     |    Yes    | Boolean |       |       | On/off control. Boolean value where True is On and False is Off.|
+ *  Colour|5706|    R/W     |    No     |    No     | String  |       |       | A string representing a value in some color space.              |
  */
 
 #include "../include/liblwm2m.h"
@@ -165,12 +163,10 @@ static uint8_t prv_read(lwm2m_context_t *contextP,
 
     if (*numDataP == 0)
     {
-        *dataArrayP = lwm2m_data_new(3);
+        *dataArrayP = lwm2m_data_new(1);
         if (*dataArrayP == NULL) return COAP_500_INTERNAL_SERVER_ERROR;
-        *numDataP = 3;
-        (*dataArrayP)[0].id = 1;
-        (*dataArrayP)[1].id = 3;
-        (*dataArrayP)[2].id = 5;
+        *numDataP = 1;
+        (*dataArrayP)[0].id = 5850;
     }
 
     for (i = 0 ; i < *numDataP ; i++)
@@ -182,16 +178,8 @@ static uint8_t prv_read(lwm2m_context_t *contextP,
 
         switch ((*dataArrayP)[i].id)
         {
-        case 1:
-            lwm2m_data_encode_int(targetP->test, *dataArrayP + i);
-            break;
-        case 2:
-            return COAP_405_METHOD_NOT_ALLOWED;
-        case 3:
-            lwm2m_data_encode_float(targetP->dec, *dataArrayP + i);
-            break;
-        case 5:
-            lwm2m_data_encode_string(targetP->str, *dataArrayP + i);
+        case 5850:
+            lwm2m_data_encode_bool(targetP->test, *dataArrayP + i);
             break;
         default:
             return COAP_404_NOT_FOUND;
@@ -215,13 +203,10 @@ static uint8_t prv_discover(lwm2m_context_t *contextP,
     // is the server asking for the full object ?
     if (*numDataP == 0)
     {
-        *dataArrayP = lwm2m_data_new(4);
+        *dataArrayP = lwm2m_data_new(2);
         if (*dataArrayP == NULL) return COAP_500_INTERNAL_SERVER_ERROR;
-        *numDataP = 3;
-        (*dataArrayP)[0].id = 1;
-        (*dataArrayP)[1].id = 2;
-        (*dataArrayP)[2].id = 3;
-        (*dataArrayP)[3].id = 5;
+        *numDataP = 1;
+        (*dataArrayP)[0].id = 5850;
     }
     else
     {
@@ -229,10 +214,7 @@ static uint8_t prv_discover(lwm2m_context_t *contextP,
         {
             switch ((*dataArrayP)[i].id)
             {
-            case 1:
-            case 2:
-            case 3:
-            case 5:
+            case 5850:
                 break;
             default:
                 return COAP_404_NOT_FOUND;
@@ -278,31 +260,53 @@ static uint8_t prv_write(lwm2m_context_t *contextP,
 
         switch (dataArray[i].id)
         {
-            case 1:
+            case 5850:
             {
-                int64_t value;
-
-                if (1 != lwm2m_data_decode_int(dataArray + i, &value) || value < 0 || value > 0xFF)
+                bool value;
+                if (1 == lwm2m_data_decode_bool(dataArray + i, &value))
+                {
+                    contextP->lwm2m_led(value);
+                    return COAP_204_CHANGED;
+                }
+                else
                 {
                     return COAP_400_BAD_REQUEST;
                 }
-                targetP->test = (uint8_t)value;
             }
             break;
-            case 2:
-                return COAP_405_METHOD_NOT_ALLOWED;
-            case 3:
-                if (1 != lwm2m_data_decode_float(dataArray + i, &(targetP->dec)))
-                {
-                    return COAP_400_BAD_REQUEST;
-                }
-                break;
-            case 5:
+            case 5706:
+                fprintf(stdout, "-------5706----------\r\n\r\n");
                 if (dataArray[i].type == LWM2M_TYPE_STRING || dataArray[i].type == LWM2M_TYPE_OPAQUE)
                 {
                     tmp = targetP->str;
                     targetP->str = lwm2m_malloc(dataArray[i].value.asBuffer.length + 1);
                     strncpy(targetP->str, (char*)dataArray[i].value.asBuffer.buffer, dataArray[i].value.asBuffer.length);
+                    // Check the length of the payload and convert the hexadecimal color to an integer
+                    if (dataArray[i].value.asBuffer.length != 6)
+                    {
+                        fprintf(stdout, "-------The length of the payload must be 6 not %d----------\r\n\r\n",dataArray[i].value.asBuffer.length);
+                        return COAP_400_BAD_REQUEST;
+                    }
+
+                    // Convert the hexadecimal color (RRGGBB) to an integer
+                    char colorStr[7];
+                    memcpy(colorStr, targetP->str, 6);
+                    colorStr[6] = '\0';
+                    unsigned int color;
+                    if (sscanf(colorStr, "%x", &color) != 1)
+                    {
+                        return COAP_400_BAD_REQUEST;
+                    }
+
+                    // Extract the individual R, G, and B components
+                    uint8_t red = (color >> 16) & 0xFF;
+                    uint8_t green = (color >> 8) & 0xFF;
+                    uint8_t blue = color & 0xFF;
+                    fprintf(stdout, "-----R=%d--G=%d-B=%d---\r\n\r\n",red, green, blue);
+                    // Set the LED color using red, green, and blue components
+                    contextP->lwm2m_set_led_color(red, green, blue);
+
+                    return COAP_204_CHANGED;
                     lwm2m_free(tmp);
                     break;
                 }
@@ -500,19 +504,7 @@ static uint8_t prv_exec(lwm2m_context_t *contextP,
 
     switch (resourceId)
     {
-        case 1:
-            return COAP_405_METHOD_NOT_ALLOWED;
-        case 2:
-            fprintf(stdout, "\r\n-----------------\r\n"
-                            "Execute on %hu/%d/%d\r\n"
-                            " Parameter (%d bytes):\r\n",
-                            objectP->objID, instanceId, resourceId, length);
-            prv_output_buffer((uint8_t*)buffer, length);
-            fprintf(stdout, "-----------------\r\n\r\n");
-            return COAP_204_CHANGED;
-        case 3:
-            return COAP_405_METHOD_NOT_ALLOWED;
-        case 5:
+        case 5850:
             return COAP_405_METHOD_NOT_ALLOWED;
         default:
             return COAP_404_NOT_FOUND;
@@ -549,27 +541,20 @@ lwm2m_object_t * get_test_object(void)
         // Not required, but useful for testing.
         testObj->versionMajor = 1;
         testObj->versionMinor = 0;
-        for (i=0 ; i < 3 ; i++)
-        {
-            targetP = (prv_instance_t *)lwm2m_malloc(sizeof(prv_instance_t));
-            if (NULL == targetP) return NULL;
-            memset(targetP, 0, sizeof(prv_instance_t));
-            targetP->shortID = 10 + i;
-            targetP->test    = 20 + i;
-            targetP->dec     = -30 + i + (double)i/100.0;
-            char * str = lwm2m_malloc(i + 1);
-            str[0] = 0;
-            for (int j = 0; j < i; j++) {
-                strcat(str, "I");
-            }
-            targetP->str     = str;
+        targetP = (prv_instance_t *)lwm2m_malloc(sizeof(prv_instance_t));
+        if (NULL == targetP) return NULL;
+        memset(targetP, 0, sizeof(prv_instance_t));
+        targetP->shortID = 0; // Set the instance ID to 0
+        targetP->test = 0; // Initialize the test resource to 0
+        targetP->dec = 0.0; // Initialize the dec resource to 0.0        
+        targetP->str = lwm2m_malloc(1);
+        targetP->str[0] = '\0'; // Initialize the str resource as an empty string
 #ifdef LWM2M_RAW_BLOCK1_REQUESTS
             targetP->block_buffer = NULL;
             targetP->value_len = 0;
             targetP->value_offset = 0;
 #endif
             testObj->instanceList = LWM2M_LIST_ADD(testObj->instanceList, targetP);
-        }
         /*
          * From a single instance object, two more functions are available.
          * - The first one (createFunc) create a new instance and filled it with the provided informations. If an ID is

@@ -12,6 +12,7 @@ char username[] = SECRET_USERNAME;
 char pass[] = SECRET_PASSWORD;
 
 GSMUDP client;
+GSMUDP server; // Add a UDP server instance
 
 void setup() {
   Serial.begin(115200);
@@ -24,6 +25,7 @@ void setup() {
     while (1)
       ;
   }
+  server.begin(atoi(NCE_RECV_PORT)); // Start the UDP server
   Serial.println("1NCE UDP Demo Started...");
 }
 
@@ -63,6 +65,16 @@ void loop() {
   ret = client.write((uint8_t const*)buffer, sizeof(buffer));
   printf("Sent %d Bytes \n", ret);
   ret = client.endPacket();
-
+  // Check for incoming UDP packets
+  int packetSize = server.parsePacket();
+  if (packetSize) {
+    char incomingBuffer[packetSize];
+    int bytesRead = server.read(incomingBuffer, packetSize);
+    if (bytesRead > 0) {
+      Serial.println("Received UDP packet:");
+      Serial.write(incomingBuffer, bytesRead);
+      Serial.println();
+    }
+  }
   delay(NCE_UDP_DATA_UPLOAD_FREQUENCY_SECONDS * 1000);
 }

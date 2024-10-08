@@ -26,3 +26,13 @@ To test unsecure communication, disable the device authenticator by removing the
 ```
 #define LwM2M_ENABLE_DTLS
 ``` 
+
+## Device Controller:
+
+The LwM2M Actions can be tested using the [Action API](https://help.1nce.com/dev-hub/reference/post_v1-devices-deviceid-actions), and the available objects include:
+
+- **Light Control (Object ID: 3311)**: This object allows you to control LEDs. 
+  - To turn on the LED, set `/3311/0/5850` to `true`. 
+  - For devices like Arduino Protenta, you can change the LED color by writing a hexadecimal value (`RRGGBB`) to `/3311/0/5706`.
+
+    For example, set `FF0000` for a bright red color.

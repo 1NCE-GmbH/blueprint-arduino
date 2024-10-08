@@ -40,7 +40,7 @@ char lwm2m_psk_id[50];
 #define DEFAULT_SERVER_IPV6 "[::1]"
 #define DEFAULT_SERVER_IPV4 "35.158.0.92"
 bool DEVICE_BOOTSTRAPPED = false;
-#define OBJ_COUNT 4
+#define OBJ_COUNT 5
 lwm2m_object_t* objArray[OBJ_COUNT];
 client_data_t data;
 lwm2m_context_t* lwm2mH = NULL;
@@ -59,7 +59,30 @@ GSMUDP client;
 time_t get_time(void) {
   return current_time;
 }
+int led_on_off_func(bool value){
+  Serial.println("Led_ON_OFF");
+  pinMode(LEDG, OUTPUT);
+  if(value == true){
+    digitalWrite(LEDG, LOW);
+    return 1;
+  }
+  else{
+    digitalWrite(LEDG, HIGH);
+    return 0;
+  }
+}
+int led_rgb_func(uint8_t red, uint8_t green, uint8_t blue){
+  Serial.println("Led_Control_RGB");
+  pinMode(LEDG, OUTPUT);
+  pinMode(LEDB, OUTPUT);
+  pinMode(LEDR, OUTPUT);
 
+  digitalWrite(LEDG, 255-green);
+  digitalWrite(LEDR, 255-red);
+  digitalWrite(LEDB, 255-blue);
+
+  return 1;
+}
 /*LwM2M UDP Interface*/
 /* Connect */
 connection_t* connection_create(connection_t* connList,
@@ -263,6 +286,12 @@ void setup() {
     printf("Failed to create Firmware object\r\n");
   }
 
+  objArray[4] = get_test_object();
+  if (NULL == objArray[4])
+  {
+      printf("Failed to create Led object\r\n");
+  }
+
   lwm2mH = lwm2m_init(&data);
 
   if (NULL == lwm2mH) {
@@ -290,6 +319,13 @@ void setup() {
   printf("LWM2M Client \"%s\" started on port %s\r\n", name, localPort);
   printf("> ");
 
+  /* define led_on_off function*/
+  led_on_off get_led_fun = &led_on_off_func;
+  lwm2mH->lwm2m_led = get_led_fun;
+  
+  /* define led_rgb function*/
+  led_rgb get_led_rgb_fun = &led_rgb_func;
+  lwm2mH->lwm2m_set_led_color = get_led_rgb_fun;
 #define BACKUP_OBJECT_COUNT 2
   lwm2m_object_t* backupObjectArray[BACKUP_OBJECT_COUNT];
   delay(5000);

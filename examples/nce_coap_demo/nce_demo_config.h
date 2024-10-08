@@ -21,4 +21,5 @@
 #define NCE_COAP_DATA_UPLOAD_FREQUENCY_SECONDS 20
 #define NCE_COAP_URI_QUERY "t=test"
 
-
+/* C2D Parameters */
+#define NCE_RECV_PORT "3000"

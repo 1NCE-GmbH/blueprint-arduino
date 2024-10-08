@@ -627,19 +627,19 @@ static void prv_add(lwm2m_context_t * lwm2mH,
     objectP = get_test_object();
     if (objectP == NULL)
     {
-        LOG( "Creating object 31024 failed.\r\n");
+        LOG( "Creating object 3311 failed.\r\n");
         return;
     }
     res = lwm2m_add_object(lwm2mH, objectP);
     if (res != 0)
     {
-        LOG("Adding object 31024 failed: ");
+        LOG("Adding object 3311 failed: ");
         print_status(stdout, res);
         LOG( "\r\n");
     }
     else
     {
-        LOG( "Object 31024 added.\r\n");
+        LOG( "Object 3311 added.\r\n");
     }
     return;
 }
@@ -653,16 +653,16 @@ static void prv_remove(lwm2m_context_t * lwm2mH,
     /* unused parameter */
     (void)user_data;
 
-    res = lwm2m_remove_object(lwm2mH, 31024);
+    res = lwm2m_remove_object(lwm2mH, 3311);
     if (res != 0)
     {
-        LOG( "Removing object 31024 failed: ");
+        LOG( "Removing object 3311 failed: ");
         print_status(stdout, res);
         LOG( "\r\n");
     }
     else
     {
-        LOG( "Object 31024 removed.\r\n");
+        LOG( "Object 3311 removed.\r\n");
     }
     return;
 }

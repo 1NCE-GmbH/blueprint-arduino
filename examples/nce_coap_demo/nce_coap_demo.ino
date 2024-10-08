@@ -33,6 +33,7 @@ DtlsKey_t nceKey = { 0 };
 #else
 GSMUDP client;
 #endif
+GSMUDP server; // Add a UDP server instance
 
 /* CoAP Definitions */
 struct coap_s* coapHandle;
@@ -57,7 +58,27 @@ int8_t coap_rx_cb(sn_coap_hdr_s* a, sn_nsdl_addr_s* b, void* c) {
   printf("coap rx cb\n");
   return 0;
 }
+void displayCoAPPacket(char* buffer, uint16_t bufferLength) {
+    // Parse the received buffer as a CoAP message
+    struct coap_s* coapHandle; // Initialize a CoAP handle
+    coap_version_e coapVersion;
+    sn_coap_hdr_s* coapMsg = sn_coap_parser(coapHandle, bufferLength, (uint8_t*)buffer, &coapVersion);
 
+    if (coapMsg) {
+        // Print CoAP message details
+        printf("CoAP Version: %d\n", coapVersion);
+        printf("Message Type: %d\n", coapMsg->msg_type);
+        printf("Message Code: %d\n", coapMsg->msg_code);
+        printf("Message ID: %d\n", coapMsg->msg_id);
+
+        // Handle other CoAP header fields as needed
+
+        // Release allocated memory
+        sn_coap_parser_release_allocated_coap_msg_mem(coapHandle, coapMsg);
+    } else {
+        printf("Failed to parse CoAP message\n");
+    }
+}
 void setup() {
   Serial.begin(115200);
   while (!Serial) {}
@@ -72,6 +93,7 @@ void setup() {
   /* Initialize CoAP library */
   coapHandle = sn_coap_protocol_init(&coap_malloc, &coap_free, &coap_tx_cb, &coap_rx_cb);
   coap_res_ptr->msg_id = 0;
+  server.begin(atoi(NCE_RECV_PORT)); // Start the UDP server
 
   Serial.println("1NCE CoAP Demo Started...");
 
@@ -162,6 +184,63 @@ void loop() {
   #endif
 
   printf("Sent %d Bytes \n", ret);
+  // Check for incoming CoAP packets
+  int packetSize = server.parsePacket();
+  coap_version_e coapVersion = COAP_VERSION_1;
+  if (packetSize) {
+    char incomingBuffer[packetSize];
+    int bytesRead = server.read(incomingBuffer, packetSize);
+    sn_coap_hdr_s* parsed = sn_coap_parser(coapHandle, bytesRead, (uint8_t*)incomingBuffer, &coapVersion);
+    if (bytesRead > 0) {
+      Serial.print("Received a message of length '");
+      Serial.print(packetSize);
+      Serial.println("'");
+       // Create a CoAP response
+        sn_coap_hdr_s* response = sn_coap_parser_alloc_message(coapHandle);
+        if (response) {
+            // Set response properties here, e.g., message type, code, etc.
+            response->msg_id = parsed->msg_id;
+            response->token_len= parsed->token_len;
+            response->token_ptr= parsed->token_ptr;
+            response->msg_type = COAP_MSG_TYPE_ACKNOWLEDGEMENT;
+            response->msg_code = COAP_MSG_CODE_RESPONSE_CHANGED;
+            // Send the CoAP response
+            uint16_t responseLen = sn_coap_builder_calc_needed_packet_data_size(response);
+            uint8_t* responsePacket = (uint8_t*)malloc(responseLen);
+            if (responsePacket) {
+                sn_coap_builder(responsePacket, response);
 
+                // Send the response back to the client
+                int responseSent = server.begin(atoi(NCE_COAP_PORT));
+                responseSent = server.beginPacket(server.remoteIP(), server.remotePort());
+                responseSent = server.write(responsePacket, responseLen);
+                responseSent = server.endPacket();
+                printf("ACK sent %d Bytes \n", responseSent);
+
+                free(responsePacket); // free the memory
+            }
+            sn_coap_parser_release_allocated_coap_msg_mem(coapHandle, response);
+      }
+    }  
+
+
+        // We know the payload is going to be a string
+        std::string payload((const char*)parsed->payload_ptr, parsed->payload_len);
+        printf("\tmsg_id:           %d\n", parsed->msg_id);
+        printf("\tmsg_code:         %d\n", parsed->msg_code);
+        printf("\tcontent_format:   %d\n", parsed->content_format);
+        printf("\tpayload_len:      %d\n", parsed->payload_len);
+        printf("\tpayload:          %s\n", payload.c_str());
+        printf("\toptions:\n");
+        printf("\tURI: %.*s\n",parsed->uri_path_len, parsed->uri_path_ptr);
+        if (parsed->options_list_ptr && parsed->options_list_ptr->uri_query_ptr) {
+          printf("\tQUERY: %.*s\n", parsed->options_list_ptr->uri_query_len, parsed->options_list_ptr->uri_query_ptr);
+        } else {
+          // Handle the case where uri_query_ptr is null
+          printf("\tQUERY is null or empty\n");
+        }
+        memset(incomingBuffer, '\0', packetSize); // Clear the buffer 
+        free(parsed);
+  }
   delay(NCE_COAP_DATA_UPLOAD_FREQUENCY_SECONDS * 1000);
 }

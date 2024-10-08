@@ -13,3 +13,6 @@
 
 /* Generic Demo Settings */
 #define NCE_UDP_DATA_UPLOAD_FREQUENCY_SECONDS 20
+
+/* C2D Parameters */
+#define NCE_RECV_PORT "3000"
