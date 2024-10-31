@@ -125,7 +125,7 @@ void setup() {
 
 void loop() {
 
-
+static bool packetProcessed = false;
 /* If Energy saver is  enabled, send the optimized payload. Otherwise, send the default test payload */
 #if defined(ENABLE_NCE_ENERGY_SAVER)
   char buffer[NCE_PAYLOAD_DATA_SIZE];
@@ -187,7 +187,7 @@ void loop() {
   // Check for incoming CoAP packets
   int packetSize = server.parsePacket();
   coap_version_e coapVersion = COAP_VERSION_1;
-  if (packetSize) {
+  if (packetSize && !packetProcessed) {
     char incomingBuffer[packetSize];
     int bytesRead = server.read(incomingBuffer, packetSize);
     sn_coap_hdr_s* parsed = sn_coap_parser(coapHandle, bytesRead, (uint8_t*)incomingBuffer, &coapVersion);
@@ -241,6 +241,11 @@ void loop() {
         }
         memset(incomingBuffer, '\0', packetSize); // Clear the buffer 
         free(parsed);
-  }
+        // Mark packet as processed
+        packetProcessed = true;
+  } else if (!packetSize) {
+        // No packet was found, reset flag
+        packetProcessed = false;
+    }
   delay(NCE_COAP_DATA_UPLOAD_FREQUENCY_SECONDS * 1000);
 }
